@@ -338,8 +338,8 @@ def training_loop(
         if (ada_stats is not None) and (batch_idx % ada_interval == 0):
             ada_stats.update()
             adjust = np.sign(ada_stats['Loss/signs/real'] - ada_target) * (batch_size * ada_interval) / (ada_kimg * 1000)
-            diffusion.p = (diffusion.p + adjust).clip(min=0., max=1.)
-            diffusion.update_T()
+            # diffusion.p = (diffusion.p + adjust).clip(min=0., max=1.)
+            # diffusion.update_T()
         # ==================================
         
         # Perform maintenance tasks once per tick.

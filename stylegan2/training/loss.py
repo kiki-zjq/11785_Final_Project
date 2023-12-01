@@ -48,10 +48,11 @@ class StyleGAN2Loss(Loss):
         return img, ws
 
     def run_D(self, img, c, sync):
-        if self.diffusion is not None:
-            img, t = self.diffusion(img)
+        # if self.diffusion is not None:
+        #     img, t = self.diffusion(img)
         with misc.ddp_sync(self.D, sync):
-            logits = self.D(img, c, t)
+            # logits = self.D(img, c, t)
+            logits = self.D(img, c)
         return logits
 
     def accumulate_gradients(self, phase, real_img, real_c, gen_z, gen_c, sync, gain):
