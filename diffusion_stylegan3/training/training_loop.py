@@ -95,6 +95,7 @@ def training_loop(
     D_kwargs                = {},       # Options for discriminator network.
     G_opt_kwargs            = {},       # Options for generator optimizer.
     D_opt_kwargs            = {},       # Options for discriminator optimizer.
+    diffusion_kwargs        = None,     # Options for augmentation pipeline. None = disable.
     augment_kwargs          = None,     # Options for augmentation pipeline. None = disable.
     loss_kwargs             = {},       # Options for loss function.
     metrics                 = [],       # Metrics to evaluate during training.
@@ -107,6 +108,7 @@ def training_loop(
     ema_rampup              = 0.05,     # EMA ramp-up coefficient. None = no rampup.
     G_reg_interval          = None,     # How often to perform regularization for G? None = disable lazy regularization.
     D_reg_interval          = 16,       # How often to perform regularization for D? None = disable lazy regularization.
+    diffusion_p               = 0,      # Initial value of diffusion level.
     augment_p               = 0,        # Initial value of augmentation probability.
     ada_target              = None,     # ADA target value. None = fixed p.
     ada_interval            = 4,        # How often to perform ADA adjustment?
@@ -171,8 +173,17 @@ def training_loop(
     # Setup augmentation.
     if rank == 0:
         print('Setting up augmentation...')
+    diffusion = None
     augment_pipe = None
     ada_stats = None
+    # ==================================
+    if (diffusion_kwargs is not None) and (diffusion_p > 0 or ada_target is not None):
+        diffusion = dnnlib.util.construct_class_by_name(**diffusion_kwargs).train().requires_grad_(False).to(device)  # subclass of torch.nn.Module
+        diffusion.p = diffusion_p
+        if ada_target is not None:
+            ada_stats = training_stats.Collector(regex='Loss/signs/real')
+    # ==================================
+
     if (augment_kwargs is not None) and (augment_p > 0 or ada_target is not None):
         augment_pipe = dnnlib.util.construct_class_by_name(**augment_kwargs).train().requires_grad_(False).to(device) # subclass of torch.nn.Module
         augment_pipe.p.copy_(torch.as_tensor(augment_p))
@@ -316,6 +327,8 @@ def training_loop(
             ada_stats.update()
             adjust = np.sign(ada_stats['Loss/signs/real'] - ada_target) * (batch_size * ada_interval) / (ada_kimg * 1000)
             augment_pipe.p.copy_((augment_pipe.p + adjust).max(misc.constant(0, device=device)))
+            diffusion.p = (diffusion.p + adjust).clip(min=0., max=1.)
+            diffusion.update_T()
 
         # Perform maintenance tasks once per tick.
         done = (cur_nimg >= total_kimg * 1000)
@@ -336,6 +349,7 @@ def training_loop(
         fields += [f"reserved {training_stats.report0('Resources/peak_gpu_mem_reserved_gb', torch.cuda.max_memory_reserved(device) / 2**30):<6.2f}"]
         torch.cuda.reset_peak_memory_stats()
         fields += [f"augment {training_stats.report0('Progress/augment', float(augment_pipe.p.cpu()) if augment_pipe is not None else 0):.3f}"]
+        fields += [f"T {training_stats.report0('Progress/augment_T', float(diffusion.num_timesteps) if diffusion is not None else 0)}"]
         training_stats.report0('Timing/total_hours', (tick_end_time - start_time) / (60 * 60))
         training_stats.report0('Timing/total_days', (tick_end_time - start_time) / (24 * 60 * 60))
         if rank == 0:

@@ -23,11 +23,12 @@ class Loss:
 #----------------------------------------------------------------------------
 
 class StyleGAN2Loss(Loss):
-    def __init__(self, device, G, D, augment_pipe=None, r1_gamma=10, style_mixing_prob=0, pl_weight=0, pl_batch_shrink=2, pl_decay=0.01, pl_no_weight_grad=False, blur_init_sigma=0, blur_fade_kimg=0):
+    def __init__(self, device, G, D, augment_pipe=None, r1_gamma=10, style_mixing_prob=0, pl_weight=0, pl_batch_shrink=2, pl_decay=0.01, pl_no_weight_grad=False, blur_init_sigma=0, blur_fade_kimg=0, Diffusion=None):
         super().__init__()
         self.device             = device
         self.G                  = G
         self.D                  = D
+        self.diffusion = Diffusion
         self.augment_pipe       = augment_pipe
         self.r1_gamma           = r1_gamma
         self.style_mixing_prob  = style_mixing_prob
@@ -57,7 +58,9 @@ class StyleGAN2Loss(Loss):
                 img = upfirdn2d.filter2d(img, f / f.sum())
         if self.augment_pipe is not None:
             img = self.augment_pipe(img)
-        logits = self.D(img, c, update_emas=update_emas)
+        if self.diffusion is not None:
+            img, t = self.diffusion(img)
+        logits = self.D(img, c, t, update_emas=update_emas)
         return logits
 
     def accumulate_gradients(self, phase, real_img, real_c, gen_z, gen_c, gain, cur_nimg):
