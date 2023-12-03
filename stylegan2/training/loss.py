@@ -52,7 +52,9 @@ class StyleGAN2Loss(Loss):
         #     img, t = self.diffusion(img)
         with misc.ddp_sync(self.D, sync):
             # logits = self.D(img, c, t)
-            logits = self.D(img, c)
+            batch_size = img.shape[0]
+            t = torch.from_numpy(np.zeros(batch_size)).to(img.device).view(-1, 1)
+            logits = self.D(img, c, t)
         return logits
 
     def accumulate_gradients(self, phase, real_img, real_c, gen_z, gen_c, sync, gain):
