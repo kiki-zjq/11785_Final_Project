@@ -161,6 +161,18 @@ def parse_comma_separated_list(s):
 @click.option('--workers',      help='DataLoader worker processes', metavar='INT',              type=click.IntRange(min=1), default=3, show_default=True)
 @click.option('-n','--dry-run', help='Print training options and exit',                         is_flag=True)
 
+# Adaptive diffusion config.
+@click.option('--beta_schedule', help='Forward diffusion beta schedule (we use linear always)', type=str, default='linear')
+@click.option('--beta_start', help='Forward diffusion process beta_start', type=float, default=1e-4)
+@click.option('--beta_end', help='Forward diffusion process beta_end', type=float, default=2e-2)
+@click.option('--t_min', help='Minimum # of timesteps for adaptively modification', type=int, default=10)
+@click.option('--t_max', help='Maximum # of timesteps for adaptively modification', type=int, default=1000)
+@click.option('--noise_sd', help='Diffusion noise standard deviation', type=float, default=0.05)
+@click.option('--ts_dist', help='Diffusion t sampling way', type=click.Choice(['priority', 'uniform']), default='priority')
+@click.option('--target', help='Discriminator target value', type=float, default=0.6)
+@click.option('--ada_kimg', help='# kimgs needed to push diffusion to maximum level', type=int, default=100)
+
+
 def main(**kwargs):
     """Train a GAN using the techniques described in the paper
     "Alias-Free Generative Adversarial Networks".
@@ -276,6 +288,21 @@ def main(**kwargs):
     desc = f'{opts.cfg:s}-{dataset_name:s}-gpus{c.num_gpus:d}-batch{c.batch_size:d}-gamma{c.loss_kwargs.r1_gamma:g}'
     if opts.desc is not None:
         desc += f'-{opts.desc}'
+    
+    # Define Diffusion Args
+    diffusion_specs = dict(
+        beta_schedule=kwargs.get("beta_schedule", None), 
+        beta_start=kwargs.get("beta_start", None), 
+        beta_end=kwargs.get("beta_end", None), 
+        t_min=kwargs.get("t_min", None),
+        t_max=kwargs.get("t_max", None),  
+        noise_std=kwargs.get("noise_std", None),
+        aug=kwargs.get("aug", None),
+        ada_maxp=kwargs.get("ada_maxp", None),
+        ts_dist=kwargs.get("ts_dist", None)
+        )
+   
+    c.diffusion_kwargs = dnnlib.EasyDict(class_name='training.diffusion.Diffusion', **diffusion_specs)
 
     # Launch.
     launch_training(c=c, desc=desc, outdir=opts.outdir, dry_run=opts.dry_run)
