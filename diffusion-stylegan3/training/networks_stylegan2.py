@@ -779,8 +779,21 @@ class Discriminator(torch.nn.Module):
         self.b4 = DiscriminatorEpilogue(channels_dict[4], cmap_dim=cmap_dim, resolution=4, **epilogue_kwargs, **common_kwargs)
 
     # Different with diffusion-stylegan2
-    def forward(self, img, c, update_emas=False, **block_kwargs):
-        _ = update_emas # unused
+    # def forward(self, img, c, update_emas=False, **block_kwargs):
+    #     _ = update_emas # unused
+    #     x = None
+    #     for res in self.block_resolutions:
+    #         block = getattr(self, f'b{res}')
+    #         x, img = block(x, img, **block_kwargs)
+
+    #     cmap = None
+    #     if self.c_dim > 0:
+    #         cmap = self.mapping(None, c)
+    #     x = self.b4(x, img, cmap)
+    #     return x
+
+    # Diffusion Discriminator
+    def forward(self, img, c, t, update_emas=False, **block_kwargs):
         x = None
         for res in self.block_resolutions:
             block = getattr(self, f'b{res}')
@@ -788,7 +801,9 @@ class Discriminator(torch.nn.Module):
 
         cmap = None
         if self.c_dim > 0:
+            c = torch.cat((c, t), dim=1) if c is not None else t
             cmap = self.mapping(None, c)
+
         x = self.b4(x, img, cmap)
         return x
 
