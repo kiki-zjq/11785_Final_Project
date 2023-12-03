@@ -296,7 +296,7 @@ def main(**kwargs):
         beta_end=kwargs.get("beta_end", None), 
         t_min=kwargs.get("t_min", None),
         t_max=kwargs.get("t_max", None),  
-        noise_std=kwargs.get("noise_std", None),
+        noise_std=kwargs.get("noise_sd", None),
         aug=kwargs.get("aug", None),
         ada_maxp=kwargs.get("ada_maxp", None),
         ts_dist=kwargs.get("ts_dist", None)
