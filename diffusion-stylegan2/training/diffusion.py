@@ -183,7 +183,7 @@ class Diffusion(torch.nn.Module):
         self.t_epl[:diffusion_ind] = t_diffusion
 
     def forward(self, x_0):
-        x_0 = self.aug(x_0)
+        x_0 = self.aug(x_0) # Identity(img)
         assert isinstance(x_0, torch.Tensor) and x_0.ndim == 4
         batch_size, num_channels, height, width = x_0.shape
         device = x_0.device
